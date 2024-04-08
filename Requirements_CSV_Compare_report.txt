@@ -1,0 +1,10 @@
+CSV Compare script
+
+User Requirements:
+1. A python script to be developed that compares two python scripts
+2. A configuration file will be provided as input to the script.
+3. Configuration file contains details about source and destination file to be compared.
+4. Script should compare source and destination file, if difference exists, value corresponding to the compared object in source and destination file must be presented in the final comparision report.
+5. If any object present in one file and missing in another, must be considered as difference and should include in comparision report.
+6. If no difference, then no need to provide that in the final comparison report.
+7. Another summary report must be provided that contains information about source and destination file as in the configuration file, then to this another column should be added that indicates the comparision result. Pass if no difference, fail if there is a difference.
