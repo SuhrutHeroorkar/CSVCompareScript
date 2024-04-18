@@ -1,35 +1,71 @@
-import os
-import pandas as pd
 import csv
+import os
 
-def compare_csv_files(source_folder, destination_file):
-    source_files = [file for file in os.listdir(source_folder) if file.endswith('.csv')] #get csv files in source folder
-    df_destination = pd.read_csv(destination_file) #read destination file data in pandas df
-    differences_count = {} #structure to count differences
-    for source_file in source_files:
-        df_source = pd.read_csv(os.path.join(source_folder, source_file)) #read source file data in pandas df
-        diff1 = df_source[~df_source.isin(df_destination)].dropna() #item in source not in destination
-        diff2 = df_destination[~df_destination.isin(df_source)].dropna() #item in destination not in source
+def read_config(config_file): #Extract source and destination files for comparision and store as dictionary
+    config_data = []
+    with open(config_file, 'r', newline='') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header
+        for row in reader:
+            config_data.append({
+                'sl_no': row[0],
+                'source_file': row[1],
+                'destination_file': row[2]
+            })
+    return config_data
 
+def compare_csv(source_file, destination_file, differences):
+    count = 0
+    with open(source_file, 'r', newline='') as source_csv, \
+            open(destination_file, 'r', newline='') as destination_csv:
+        source_reader = csv.reader(source_csv)
+        destination_reader = csv.reader(destination_csv)
+        
+        for row_num, (source_row, destination_row) in enumerate(zip(source_reader, destination_reader), start=1):
+            for i, (source_value, destination_value) in enumerate(zip(source_row, destination_row)):
+                if source_value != destination_value:
+                    differences.append([f'Row {row_num}', f'Column {i+1}', source_value, destination_value])
+                    count += 1
+    return count
 
-        differences_count[source_file] = {'Items in Source Not in Destination': len(diff1),
-                                          'Items in Destination Not in Source': len(diff2)}
+def generate_comparison_result(config_data):
+    results = []
+    for config_entry in config_data:
+        sl_no = config_entry['sl_no']
+        source_file = config_entry['source_file']
+        destination_file = config_entry['destination_file']
+        differences = []
+        count = compare_csv(source_file, destination_file, differences)
+        result = 'Pass' if count == 0 else 'Failed'
+        results.append([sl_no, source_file, destination_file, result, count])
+    return results
 
-        output_file1 = os.path.join(source_folder, f'differences_{source_file}_source_not_in_destination.csv')
-        output_file2 = os.path.join(source_folder, f'differences_{source_file}_destination_not_in_source.csv')
-        diff1.to_csv(output_file1, index=False)
-        diff2.to_csv(output_file2, index=False)
+def main(config_file):
+    config_data = read_config(config_file)
+    current_directory = os.getcwd()
+    
+    # Generate differences report
+    all_differences = []
+    for config_entry in config_data:
+        sl_no = config_entry['sl_no']
+        source_file = config_entry['source_file']
+        destination_file = config_entry['destination_file']
+        compare_csv(source_file, destination_file, all_differences)
 
-    summary_file = os.path.join(source_folder, 'comparison_summary.csv') #summary file
-    with open(summary_file, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=['CSV File', 'Items in Source Not in Destination', 'Items in Destination Not in Source'])
-        writer.writeheader()
-        for csv_file, diff_count in differences_count.items():
-            writer.writerow({'CSV File': csv_file,
-                             'Items in Source Not in Destination': diff_count['Items in Source Not in Destination'],
-                             'Items in Destination Not in Source': diff_count['Items in Destination Not in Source']})
+    # Write all differences to a single report file
+    differences_report_path = os.path.join(current_directory, 'all_differences_report.csv')
+    with open(differences_report_path, 'w', newline='') as report:
+        report_writer = csv.writer(report)
+        report_writer.writerow(['Row', 'Column', 'Source Value', 'Destination Value'])
+        report_writer.writerows(all_differences)
+        
+    # Generate comparison result report
+    comparison_result = generate_comparison_result(config_data)
+    comparison_result_report_path = os.path.join(current_directory, 'comparison_result_report.csv')
+    with open(comparison_result_report_path, 'w', newline='') as result_report:
+        result_writer = csv.writer(result_report)
+        result_writer.writerow(['Sl No', 'Source File', 'Destination File', 'Result', 'Count'])
+        result_writer.writerows(comparison_result)
 
-source_folder = 'D:/pythonWorkspace/CSV_files'
-destination_file = "D:/pythonWorkspace/CSV_files/Magnetometer_edit1.csv"
-
-compare_csv_files(source_folder, destination_file)
+if __name__ == "__main__":
+    main("D:/pythonWorkspace/CSV_files/CSV_compare_config.csv")
